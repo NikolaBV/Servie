@@ -114,6 +114,23 @@ int main()
 			printf("Response buffer overflow or snprintf error\n");
 		}
 	}
+	else if (strncmp(path, "/user-agent/", 12) == 0)
+	{
+		strtok(NULL, "\r\n");
+		strtok(NULL, "\r\n");
+		char *userAgent = strtok(0, "\r\n") + 12;
+
+		char response[BUFFER_SIZE];
+		int response_size = snprintf(response, sizeof(response),
+									 "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %zu\r\n\r\n%s",
+									 strlen(userAgent), userAgent);
+
+		printf("Debug: Full Response:\n%s\n", response);
+		if (send(client_fd, response, response_size, 0) < 0)
+		{
+			printf("Send failed: %s \n", strerror(errno));
+		}
+	}
 	else
 	{
 		send(client_fd, response_not_found, strlen(response_not_found), 0);
