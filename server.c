@@ -11,6 +11,8 @@
 char *response_ok = "HTTP/1.1 200 OK\r\n\r\n";
 char *response_not_found = "HTTP/1.1 404 Not Found\r\n\r\n";
 
+void handle_client(int client_fd);
+
 int main()
 {
 	setbuf(stdout, NULL);
@@ -68,21 +70,24 @@ int main()
 	}
 	printf("Client connected\n");
 
-	// Read request from client
-	char request_buffer[BUFFER_SIZE] = {0};
+	handle_client(client_fd);
 
+	close(server_fd);
+
+	return 0;
+}
+
+void handle_client(int client_fd)
+{
+	char request_buffer[BUFFER_SIZE] = {0};
 	if (read(client_fd, request_buffer, BUFFER_SIZE) < 0)
 	{
 		printf("Read failed: %s \n", strerror(errno));
-		close(server_fd);
-		return 1;
+		close(client_fd);
+		return;
 	}
-	else
-	{
-		printf("Request from client:%s\n", request_buffer);
-	}
+	printf("Request from client:%s\n", request_buffer);
 
-	// Parse HTTP request
 	char *path = strtok(request_buffer, " ");
 	path = strtok(NULL, " ");
 
@@ -93,26 +98,11 @@ int main()
 	else if (strncmp(path, "/echo/", 6) == 0)
 	{
 		char *echo_string = path + 6;
-
-		int string_length = strlen(echo_string);
-
 		char response[BUFFER_SIZE];
-		int response_size = snprintf(response, sizeof(response),
-									 "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s",
-									 string_length, echo_string);
-
-		if (response_size >= 0 && response_size < sizeof(response))
-		{
-			printf("Debug: Full Response:\n%s\n", response);
-			if (send(client_fd, response, response_size, 0) < 0)
-			{
-				printf("Send failed: %s \n", strerror(errno));
-			}
-		}
-		else
-		{
-			printf("Response buffer overflow or snprintf error\n");
-		}
+		snprintf(response, sizeof(response),
+				 "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %ld\r\n\r\n%s",
+				 strlen(echo_string), echo_string);
+		send(client_fd, response, strlen(response), 0);
 	}
 	else if (strncmp(path, "/user-agent/", 12) == 0)
 	{
@@ -137,7 +127,4 @@ int main()
 	}
 
 	close(client_fd);
-	close(server_fd);
-
-	return 0;
 }
