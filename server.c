@@ -6,6 +6,8 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+#include <pthread.h>
+#include <stdint.h>
 
 #define BUFFER_SIZE 1024
 char *response_ok = "HTTP/1.1 200 OK\r\n\r\n";
@@ -62,16 +64,25 @@ int main()
 	printf("Waiting for a client to connect...\n");
 	client_addr_len = sizeof(client_addr);
 
-	int client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_addr_len);
-	if (client_fd < 0)
+	while (1)
 	{
-		printf("Accept failed: %s \n", strerror(errno));
-		return 1;
+		int client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_addr_len);
+		if (client_fd < 0)
+		{
+			printf("Accept failed: %s \n", strerror(errno));
+			continue;
+		}
+		printf("Client connected\n");
+
+		pthread_t thread_id;
+		if (pthread_create(&thread_id, NULL, (void *)handle_client, (void *)(intptr_t)client_fd) != 0)
+		{
+			printf("Failed to create thread: %s\n", strerror(errno));
+			close(client_fd);
+			continue;
+		}
+		pthread_detach(thread_id);
 	}
-	printf("Client connected\n");
-
-	handle_client(client_fd);
-
 	close(server_fd);
 
 	return 0;
